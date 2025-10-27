@@ -1,5 +1,4 @@
 package app
-import "core:fmt"
 import rl "vendor:raylib"
 
 Screens :: enum {
@@ -22,6 +21,7 @@ MIDDLE_BAR_HEIGHT: f32 = cast(f32)SCREEN_HEIGHT
 MIDDLE_BAR_X: f32 = cast(f32)(SCREEN_WIDTH / 2) - MIDDLE_BAR_WIDTH / 2
 
 current_screen: Screens = Screens.START_MENU
+
 
 main :: proc() {
 	player1: rl.Rectangle
@@ -102,32 +102,74 @@ game :: proc(pplayer1: ^rl.Rectangle, pplayer2: ^rl.Rectangle) {
 handle_player_movement :: proc(pplayer: ^rl.Rectangle, controls: Controls) {
 
 	if (controls == Controls.ZQSD) {
-		if (rl.IsKeyDown(rl.KeyboardKey.W)) {
+		if (rl.IsKeyDown(rl.KeyboardKey.W) && player_can_go_up(pplayer^)) {
 			pplayer^.y -= BASE_PLAYER_SPEED
 		}
-		if (rl.IsKeyDown(rl.KeyboardKey.A)) {
+		if (rl.IsKeyDown(rl.KeyboardKey.A) && player1_can_go_left(pplayer^)) {
 			pplayer^.x -= BASE_PLAYER_SPEED
 		}
-		if (rl.IsKeyDown(rl.KeyboardKey.S)) {
+		if (rl.IsKeyDown(rl.KeyboardKey.S) && player_can_go_down(pplayer^)) {
 			pplayer^.y += BASE_PLAYER_SPEED
 		}
-		if (rl.IsKeyDown(rl.KeyboardKey.D)) {
+		if (rl.IsKeyDown(rl.KeyboardKey.D) && player1_can_go_right(pplayer^)) {
 			pplayer^.x += BASE_PLAYER_SPEED
 		}
 	}
 
 	if (controls == Controls.OKLM) {
-		if (rl.IsKeyDown(rl.KeyboardKey.O)) {
+		if (rl.IsKeyDown(rl.KeyboardKey.O) && player_can_go_up(pplayer^)) {
 			pplayer^.y -= BASE_PLAYER_SPEED
 		}
-		if (rl.IsKeyDown(rl.KeyboardKey.K)) {
+		if (rl.IsKeyDown(rl.KeyboardKey.K) && player2_can_go_left(pplayer^)) {
 			pplayer^.x -= BASE_PLAYER_SPEED
 		}
-		if (rl.IsKeyDown(rl.KeyboardKey.L)) {
+		if (rl.IsKeyDown(rl.KeyboardKey.L) && player_can_go_down(pplayer^)) {
 			pplayer^.y += BASE_PLAYER_SPEED
 		}
-		if (rl.IsKeyDown(rl.KeyboardKey.SEMICOLON)) {
+		if (rl.IsKeyDown(rl.KeyboardKey.SEMICOLON) && player2_can_go_right(pplayer^)) {
 			pplayer^.x += BASE_PLAYER_SPEED
 		}
 	}
+}
+
+player_can_go_up :: proc(player: rl.Rectangle) -> bool {
+	if (player.y == 0) {
+		return false
+	}
+	return true
+}
+
+player_can_go_down :: proc(player: rl.Rectangle) -> bool {
+	if (player.y + player.height == cast(f32)SCREEN_HEIGHT) {
+		return false
+	}
+	return true
+}
+
+player1_can_go_left :: proc(player: rl.Rectangle) -> bool {
+	if (player.x <= 0) {
+		return false
+	}
+	return true
+}
+
+player2_can_go_right :: proc(player: rl.Rectangle) -> bool {
+	if (player.x + player.width >= cast(f32)SCREEN_WIDTH) {
+		return false
+	}
+	return true
+}
+
+player2_can_go_left :: proc(player: rl.Rectangle) -> bool {
+	if (player.x <= MIDDLE_BAR_X + MIDDLE_BAR_WIDTH) {
+		return false
+	}
+	return true
+}
+
+player1_can_go_right :: proc(player: rl.Rectangle) -> bool {
+	if (player.x + player.width >= cast(f32)(MIDDLE_BAR_X)) {
+		return false
+	}
+	return true
 }
