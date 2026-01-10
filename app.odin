@@ -1,4 +1,5 @@
 package app
+import fmt "core:fmt"
 import rl "vendor:raylib"
 
 Screens :: enum {
@@ -11,10 +12,30 @@ Controls :: enum {
 	OKLM,
 }
 
+LaserValues :: enum {
+	WIDTH  = 30,
+	HEIGHT = 4,
+	SPEED  = 12,
+}
+
+Laser :: struct {
+	rec:     rl.Rectangle,
+	shot_by: PlayerId,
+}
+
+PlayerId :: enum {
+	PLAYER1,
+	PLAYER2,
+}
+
 SCREEN_WIDTH: i32 = 800
 SCREEN_HEIGHT: i32 = 600
 
 BASE_PLAYER_SPEED: f32 = 3
+PLAYER_ATTACK_SPEED: f32 = 0.03
+
+player1_attack_timer: f32 = 0
+player2_attack_timer: f32 = 0
 
 MIDDLE_BAR_WIDTH: f32 = 6
 MIDDLE_BAR_HEIGHT: f32 = cast(f32)SCREEN_HEIGHT
@@ -22,6 +43,10 @@ MIDDLE_BAR_X: f32 = cast(f32)(SCREEN_WIDTH / 2) - MIDDLE_BAR_WIDTH / 2
 
 current_screen: Screens = Screens.START_MENU
 
+middle_bar: rl.Rectangle
+lasers: [dynamic]Laser
+
+EPS: f32 = 0.0001
 
 main :: proc() {
 	player1: rl.Rectangle
@@ -35,6 +60,13 @@ main :: proc() {
 	player2.height = 15
 	player2.x = cast(f32)(SCREEN_WIDTH - (SCREEN_WIDTH / 4) - cast(i32)player2.width)
 	player2.y = cast(f32)SCREEN_HEIGHT / 2 - player2.height
+
+
+	middle_bar.width = MIDDLE_BAR_WIDTH
+	middle_bar.height = MIDDLE_BAR_HEIGHT
+	middle_bar.x = MIDDLE_BAR_X
+	middle_bar.y = 0
+
 
 	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "2sg")
 	monitor := rl.GetCurrentMonitor()
@@ -79,15 +111,20 @@ main_menu :: proc() {
 game :: proc(pplayer1: ^rl.Rectangle, pplayer2: ^rl.Rectangle) {
 	rl.BeginDrawing()
 
-	middle_bar: rl.Rectangle
-	middle_bar.width = MIDDLE_BAR_WIDTH
-	middle_bar.height = MIDDLE_BAR_HEIGHT
-	middle_bar.x = MIDDLE_BAR_X
-	middle_bar.y = 0
-
 	handle_player_movement(pplayer1, Controls.ZQSD)
 	handle_player_movement(pplayer2, Controls.OKLM)
+	handle_player_attack_move(pplayer1^, Controls.ZQSD)
+	handle_player_attack_move(pplayer2^, Controls.OKLM)
 
+	if (player1_attack_timer < 1) {
+		player1_attack_timer += PLAYER_ATTACK_SPEED
+	}
+
+	if (player2_attack_timer < 1) {
+		player2_attack_timer += PLAYER_ATTACK_SPEED
+	}
+
+	handle_lasers()
 
 	rl.DrawRectangleRec(middle_bar, rl.WHITE)
 	rl.DrawRectangleRec(pplayer1^, rl.RED)
@@ -133,14 +170,14 @@ handle_player_movement :: proc(pplayer: ^rl.Rectangle, controls: Controls) {
 }
 
 player_can_go_up :: proc(player: rl.Rectangle) -> bool {
-	if (player.y == 0) {
+	if (player.y <= 0) {
 		return false
 	}
 	return true
 }
 
 player_can_go_down :: proc(player: rl.Rectangle) -> bool {
-	if (player.y + player.height == cast(f32)SCREEN_HEIGHT) {
+	if (player.y + player.height >= cast(f32)SCREEN_HEIGHT) {
 		return false
 	}
 	return true
@@ -172,4 +209,66 @@ player1_can_go_right :: proc(player: rl.Rectangle) -> bool {
 		return false
 	}
 	return true
+}
+
+
+handle_player_attack_move :: proc(player: rl.Rectangle, controls: Controls) {
+	if (controls == Controls.ZQSD) {
+		if (rl.IsKeyDown(rl.KeyboardKey.SPACE) && player1_attack_timer >= 1 - EPS) {
+			laser: Laser
+			laser.rec.height = cast(f32)LaserValues.HEIGHT
+			laser.rec.width = cast(f32)LaserValues.WIDTH
+			laser.rec.x = player.x
+			laser.rec.y = player.y + player.height / 2 - laser.rec.height / 2
+
+			laser.shot_by = PlayerId.PLAYER1
+			append(&lasers, laser)
+			player1_attack_timer = 0
+		}
+	}
+
+	if (controls == Controls.OKLM) {
+		if (rl.IsKeyDown(rl.KeyboardKey.RIGHT_SHIFT) && player2_attack_timer >= 1 - EPS) {
+			laser: Laser
+			laser.rec.height = cast(f32)LaserValues.HEIGHT
+			laser.rec.width = cast(f32)LaserValues.WIDTH
+			laser.rec.x = player.x
+			laser.rec.y = player.y + player.height / 2 - laser.rec.height / 2
+
+			laser.shot_by = PlayerId.PLAYER2
+			append(&lasers, laser)
+			player2_attack_timer = 0
+
+		}
+	}
+}
+
+handle_lasers :: proc() {
+	for &laser, index in lasers {
+		if (laser.shot_by == PlayerId.PLAYER1) {
+			laser.rec.x += cast(f32)LaserValues.SPEED
+			rl.DrawRectangleRec(laser.rec, rl.BLUE)
+
+		}
+
+		if (laser.shot_by == PlayerId.PLAYER2) {
+			laser.rec.x -= cast(f32)LaserValues.SPEED
+			rl.DrawRectangleRec(laser.rec, rl.GREEN)
+
+		}
+
+		if (is_laser_out_of_bounds(laser)) {
+			unordered_remove(&lasers, index)
+		}
+	}
+}
+
+is_laser_out_of_bounds :: proc(laser: Laser) -> bool {
+	if (laser.rec.x < 0 || laser.rec.x > cast(f32)SCREEN_WIDTH) {
+		return true
+	}
+	if (laser.rec.y < 0 || laser.rec.y > cast(f32)SCREEN_HEIGHT) {
+		return true
+	}
+	return false
 }
