@@ -28,6 +28,12 @@ PlayerId :: enum {
 	PLAYER2,
 }
 
+GameStatuses :: enum {
+	PLAYER1_WON,
+	PLAYER2_WON,
+	RUNNING,
+}
+
 SCREEN_WIDTH: i32 = 800
 SCREEN_HEIGHT: i32 = 600
 
@@ -40,6 +46,8 @@ player2_attack_timer: f32 = 0
 MIDDLE_BAR_WIDTH: f32 = 6
 MIDDLE_BAR_HEIGHT: f32 = cast(f32)SCREEN_HEIGHT
 MIDDLE_BAR_X: f32 = cast(f32)(SCREEN_WIDTH / 2) - MIDDLE_BAR_WIDTH / 2
+
+GAME_STATUS: GameStatuses = GameStatuses.RUNNING
 
 current_screen: Screens = Screens.START_MENU
 
@@ -130,6 +138,9 @@ game :: proc(pplayer1: ^rl.Rectangle, pplayer2: ^rl.Rectangle) {
 	rl.DrawRectangleRec(pplayer1^, rl.RED)
 	rl.DrawRectangleRec(pplayer2^, rl.RED)
 
+	if (GAME_STATUS != GameStatuses.RUNNING) {
+		// handle_game_end()
+	}
 
 	rl.ClearBackground(rl.BLACK)
 	rl.EndDrawing()
