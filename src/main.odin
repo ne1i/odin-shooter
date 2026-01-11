@@ -1,10 +1,12 @@
 package app
 import fmt "core:fmt"
+import "core:strings"
 import rl "vendor:raylib"
 
 Screens :: enum {
 	START_MENU,
 	GAME,
+	GAME_OVER,
 }
 
 Controls :: enum {
@@ -87,10 +89,12 @@ main :: proc() {
 		case Screens.GAME:
 			game(&player1, &player2)
 			break
+		case Screens.GAME_OVER:
+			game_over()
+			break
 		}
 
 	}
-	rl.CloseWindow()
 }
 
 main_menu :: proc() {
@@ -132,15 +136,11 @@ game :: proc(pplayer1: ^rl.Rectangle, pplayer2: ^rl.Rectangle) {
 		player2_attack_timer += PLAYER_ATTACK_SPEED
 	}
 
-	handle_lasers()
+	handle_lasers(pplayer1^, pplayer2^)
 
 	rl.DrawRectangleRec(middle_bar, rl.WHITE)
 	rl.DrawRectangleRec(pplayer1^, rl.RED)
 	rl.DrawRectangleRec(pplayer2^, rl.RED)
-
-	if (GAME_STATUS != GameStatuses.RUNNING) {
-		// handle_game_end()
-	}
 
 	rl.ClearBackground(rl.BLACK)
 	rl.EndDrawing()
@@ -254,17 +254,29 @@ handle_player_attack_move :: proc(player: rl.Rectangle, controls: Controls) {
 	}
 }
 
-handle_lasers :: proc() {
+handle_lasers :: proc(player1: rl.Rectangle, player2: rl.Rectangle) {
 	for &laser, index in lasers {
 		if (laser.shot_by == PlayerId.PLAYER1) {
 			laser.rec.x += cast(f32)LaserValues.SPEED
 			rl.DrawRectangleRec(laser.rec, rl.BLUE)
+
+			if (rl.CheckCollisionRecs(player2, laser.rec)) {
+				GAME_STATUS = GameStatuses.PLAYER1_WON
+				current_screen = Screens.GAME_OVER
+				return
+			}
+
 
 		}
 
 		if (laser.shot_by == PlayerId.PLAYER2) {
 			laser.rec.x -= cast(f32)LaserValues.SPEED
 			rl.DrawRectangleRec(laser.rec, rl.GREEN)
+			if (rl.CheckCollisionRecs(player1, laser.rec)) {
+				GAME_STATUS = GameStatuses.PLAYER2_WON
+				current_screen = Screens.GAME_OVER
+				return
+			}
 
 		}
 
@@ -282,4 +294,29 @@ is_laser_out_of_bounds :: proc(laser: Laser) -> bool {
 		return true
 	}
 	return false
+}
+
+
+game_over :: proc() {
+	rl.BeginDrawing()
+
+	player_won_text := GAME_STATUS == GameStatuses.PLAYER1_WON ? "Player 1 won" : "Player 2 won"
+	start_menu_text_string := strings.concatenate([]string{"Game Over ! ", player_won_text})
+	start_menu_text: cstring = strings.clone_to_cstring(start_menu_text_string)
+	start_menu_text_font_size: i32 = 50
+	start_menu_text_width := rl.MeasureText(start_menu_text, start_menu_text_font_size)
+	rl.DrawText(
+		start_menu_text,
+		(SCREEN_WIDTH / 2) - start_menu_text_width / 2,
+		SCREEN_HEIGHT / 3,
+		start_menu_text_font_size,
+		rl.RED,
+	)
+
+	// rl.ClearBackground(rl.BLACK)
+	rl.EndDrawing()
+	if (rl.IsKeyPressed(rl.KeyboardKey.ENTER)) {
+		rl.CloseWindow()
+
+	}
 }
