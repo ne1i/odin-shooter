@@ -40,10 +40,10 @@ SCREEN_WIDTH: i32 = 800
 SCREEN_HEIGHT: i32 = 600
 
 BASE_PLAYER_SPEED: f32 = 3
-PLAYER_ATTACK_SPEED: f32 = 0.03
+PLAYER_ATTACK_SPEED: f32 = 0.01
 
-player1_attack_timer: f32 = 0
-player2_attack_timer: f32 = 0
+player1_attack_timer: f32 = 1
+player2_attack_timer: f32 = 1
 
 MIDDLE_BAR_WIDTH: f32 = 6
 MIDDLE_BAR_HEIGHT: f32 = cast(f32)SCREEN_HEIGHT
@@ -95,6 +95,7 @@ main :: proc() {
 		}
 
 	}
+	rl.CloseWindow()
 }
 
 main_menu :: proc() {
@@ -111,7 +112,6 @@ main_menu :: proc() {
 		start_menu_text_font_size,
 		rl.WHITE,
 	)
-
 	rl.ClearBackground(rl.BLACK)
 	rl.EndDrawing()
 	if (rl.IsKeyPressed(rl.KeyboardKey.ENTER)) {
@@ -136,8 +136,13 @@ game :: proc(pplayer1: ^rl.Rectangle, pplayer2: ^rl.Rectangle) {
 		player2_attack_timer += PLAYER_ATTACK_SPEED
 	}
 
+	if (GAME_STATUS != GameStatuses.RUNNING) {
+		reset_game(pplayer1, pplayer2)
+		current_screen = Screens.GAME_OVER
+	}
 	handle_lasers(pplayer1^, pplayer2^)
 
+	draw_charge_bars()
 	rl.DrawRectangleRec(middle_bar, rl.WHITE)
 	rl.DrawRectangleRec(pplayer1^, rl.RED)
 	rl.DrawRectangleRec(pplayer2^, rl.RED)
@@ -262,7 +267,6 @@ handle_lasers :: proc(player1: rl.Rectangle, player2: rl.Rectangle) {
 
 			if (rl.CheckCollisionRecs(player2, laser.rec)) {
 				GAME_STATUS = GameStatuses.PLAYER1_WON
-				current_screen = Screens.GAME_OVER
 				return
 			}
 
@@ -274,7 +278,6 @@ handle_lasers :: proc(player1: rl.Rectangle, player2: rl.Rectangle) {
 			rl.DrawRectangleRec(laser.rec, rl.GREEN)
 			if (rl.CheckCollisionRecs(player1, laser.rec)) {
 				GAME_STATUS = GameStatuses.PLAYER2_WON
-				current_screen = Screens.GAME_OVER
 				return
 			}
 
@@ -316,7 +319,33 @@ game_over :: proc() {
 	// rl.ClearBackground(rl.BLACK)
 	rl.EndDrawing()
 	if (rl.IsKeyPressed(rl.KeyboardKey.ENTER)) {
-		rl.CloseWindow()
+		GAME_STATUS = GameStatuses.RUNNING
+		current_screen = Screens.START_MENU
 
 	}
+}
+
+reset_game :: proc(player1: ^rl.Rectangle, player2: ^rl.Rectangle) {
+	clear(&lasers)
+	player1_attack_timer = 1
+	player2_attack_timer = 1
+	player1.x = cast(f32)SCREEN_WIDTH / 4 - player1.width
+	player1.y = cast(f32)SCREEN_HEIGHT / 2 - player1.height
+	player2.x = cast(f32)(SCREEN_WIDTH - (SCREEN_WIDTH / 4) - cast(i32)player2.width)
+	player2.y = cast(f32)SCREEN_HEIGHT / 2 - player2.height
+}
+
+draw_charge_bars :: proc() {
+	charge_bar1_bg := rl.Rectangle{10, cast(f32)SCREEN_HEIGHT - 25, 80, 15}
+	charge_bar2_bg := rl.Rectangle{cast(f32)SCREEN_WIDTH - 90, cast(f32)SCREEN_HEIGHT - 25, 80, 15}
+	rl.DrawRectangleRec(charge_bar1_bg, rl.DARKGRAY)
+	rl.DrawRectangleRec(charge_bar2_bg, rl.DARKGRAY)
+	
+	charge_bar1 := rl.Rectangle{10, cast(f32)SCREEN_HEIGHT - 25, 80 * player1_attack_timer, 15}
+	charge_bar2 := rl.Rectangle{cast(f32)SCREEN_WIDTH - 90, cast(f32)SCREEN_HEIGHT - 25, 80 * player2_attack_timer, 15}
+	rl.DrawRectangleRec(charge_bar1, rl.GREEN)
+	rl.DrawRectangleRec(charge_bar2, rl.GREEN)
+	rl.DrawRectangleLinesEx(charge_bar1_bg, 3, rl.WHITE)
+	rl.DrawRectangleLinesEx(charge_bar2_bg, 3, rl.WHITE)
+
 }
