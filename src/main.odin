@@ -1,5 +1,6 @@
 package app
 import fmt "core:fmt"
+import "core:math/rand"
 import "core:strings"
 import rl "vendor:raylib"
 
@@ -38,38 +39,58 @@ GameStatuses :: enum {
 
 SCREEN_WIDTH: i32 = 800
 SCREEN_HEIGHT: i32 = 600
-
+TARGET_FPS: i32 = 120
 BASE_PLAYER_SPEED: f32 = 3
 PLAYER_ATTACK_SPEED: f32 = 0.01
 
 player1_attack_timer: f32 = 1
 player2_attack_timer: f32 = 1
 
+ATTACK_SPEED_BONUS_DROP_RATE: f32 = 0.1 / cast(f32)TARGET_FPS // 1/10 chance every second
+
+BONUS_WIDTH: f32 = 20
+BONUS_HEIGHT: f32 = 20
+
 MIDDLE_BAR_WIDTH: f32 = 6
 MIDDLE_BAR_HEIGHT: f32 = cast(f32)SCREEN_HEIGHT
 MIDDLE_BAR_X: f32 = cast(f32)(SCREEN_WIDTH / 2) - MIDDLE_BAR_WIDTH / 2
+
+PLAYER_WIDTH: f32 = 15
+PLAYER_HEIGHT: f32 = 15
+PLAYER_START_X_OFFSET: f32 = 0.25
+PLAYER_START_Y_OFFSET: f32 = 0.5
+
+CHARGE_BAR_WIDTH: f32 = 80
+CHARGE_BAR_HEIGHT: f32 = 15
+CHARGE_BAR_X_OFFSET: f32 = 10
+CHARGE_BAR_Y_OFFSET: f32 = 25
+CHARGE_BAR_BORDER: f32 = 3
 
 GAME_STATUS: GameStatuses = GameStatuses.RUNNING
 
 current_screen: Screens = Screens.START_MENU
 
 middle_bar: rl.Rectangle
+bonus_rec: rl.Rectangle
+bonus_active: bool
 lasers: [dynamic]Laser
 
 EPS: f32 = 0.0001
 
 main :: proc() {
 	player1: rl.Rectangle
-	player1.width = 15
-	player1.height = 15
-	player1.x = cast(f32)SCREEN_WIDTH / 4 - player1.width
-	player1.y = cast(f32)SCREEN_HEIGHT / 2 - player1.height
+	player1.width = PLAYER_WIDTH
+	player1.height = PLAYER_HEIGHT
+	player1.x = cast(f32)SCREEN_WIDTH * PLAYER_START_X_OFFSET - player1.width
+	player1.y = cast(f32)SCREEN_HEIGHT * PLAYER_START_Y_OFFSET - player1.height
 
 	player2: rl.Rectangle
-	player2.width = 15
-	player2.height = 15
-	player2.x = cast(f32)(SCREEN_WIDTH - (SCREEN_WIDTH / 4) - cast(i32)player2.width)
-	player2.y = cast(f32)SCREEN_HEIGHT / 2 - player2.height
+	player2.width = PLAYER_WIDTH
+	player2.height = PLAYER_HEIGHT
+	player2.x = cast(f32)(SCREEN_WIDTH -
+		cast(i32)(cast(f32)SCREEN_WIDTH * PLAYER_START_X_OFFSET) -
+		cast(i32)player2.width)
+	player2.y = cast(f32)SCREEN_HEIGHT * PLAYER_START_Y_OFFSET - player2.height
 
 
 	middle_bar.width = MIDDLE_BAR_WIDTH
@@ -141,7 +162,7 @@ game :: proc(pplayer1: ^rl.Rectangle, pplayer2: ^rl.Rectangle) {
 		current_screen = Screens.GAME_OVER
 	}
 	handle_lasers(pplayer1^, pplayer2^)
-
+	// handle_bonuses()
 	draw_charge_bars()
 	rl.DrawRectangleRec(middle_bar, rl.WHITE)
 	rl.DrawRectangleRec(pplayer1^, rl.RED)
@@ -329,23 +350,73 @@ reset_game :: proc(player1: ^rl.Rectangle, player2: ^rl.Rectangle) {
 	clear(&lasers)
 	player1_attack_timer = 1
 	player2_attack_timer = 1
-	player1.x = cast(f32)SCREEN_WIDTH / 4 - player1.width
-	player1.y = cast(f32)SCREEN_HEIGHT / 2 - player1.height
-	player2.x = cast(f32)(SCREEN_WIDTH - (SCREEN_WIDTH / 4) - cast(i32)player2.width)
-	player2.y = cast(f32)SCREEN_HEIGHT / 2 - player2.height
+	player1.x = cast(f32)SCREEN_WIDTH * PLAYER_START_X_OFFSET - player1.width
+	player1.y = cast(f32)SCREEN_HEIGHT * PLAYER_START_Y_OFFSET - player1.height
+	player2.x = cast(f32)(SCREEN_WIDTH -
+		cast(i32)(cast(f32)SCREEN_WIDTH * PLAYER_START_X_OFFSET) -
+		cast(i32)player2.width)
+	player2.y = cast(f32)SCREEN_HEIGHT * PLAYER_START_Y_OFFSET - player2.height
+	bonus_active = false
 }
 
 draw_charge_bars :: proc() {
-	charge_bar1_bg := rl.Rectangle{10, cast(f32)SCREEN_HEIGHT - 25, 80, 15}
-	charge_bar2_bg := rl.Rectangle{cast(f32)SCREEN_WIDTH - 90, cast(f32)SCREEN_HEIGHT - 25, 80, 15}
+	charge_bar1_bg := rl.Rectangle {
+		CHARGE_BAR_X_OFFSET,
+		cast(f32)SCREEN_HEIGHT - CHARGE_BAR_Y_OFFSET,
+		CHARGE_BAR_WIDTH,
+		CHARGE_BAR_HEIGHT,
+	}
+	charge_bar2_bg := rl.Rectangle {
+		cast(f32)SCREEN_WIDTH - CHARGE_BAR_WIDTH - CHARGE_BAR_X_OFFSET,
+		cast(f32)SCREEN_HEIGHT - CHARGE_BAR_Y_OFFSET,
+		CHARGE_BAR_WIDTH,
+		CHARGE_BAR_HEIGHT,
+	}
 	rl.DrawRectangleRec(charge_bar1_bg, rl.DARKGRAY)
 	rl.DrawRectangleRec(charge_bar2_bg, rl.DARKGRAY)
-	
-	charge_bar1 := rl.Rectangle{10, cast(f32)SCREEN_HEIGHT - 25, 80 * player1_attack_timer, 15}
-	charge_bar2 := rl.Rectangle{cast(f32)SCREEN_WIDTH - 90, cast(f32)SCREEN_HEIGHT - 25, 80 * player2_attack_timer, 15}
+
+	charge_bar1 := rl.Rectangle {
+		CHARGE_BAR_X_OFFSET,
+		cast(f32)SCREEN_HEIGHT - CHARGE_BAR_Y_OFFSET,
+		CHARGE_BAR_WIDTH * player1_attack_timer,
+		CHARGE_BAR_HEIGHT,
+	}
+	charge_bar2 := rl.Rectangle {
+		cast(f32)SCREEN_WIDTH - CHARGE_BAR_WIDTH - CHARGE_BAR_X_OFFSET,
+		cast(f32)SCREEN_HEIGHT - CHARGE_BAR_Y_OFFSET,
+		CHARGE_BAR_WIDTH * player2_attack_timer,
+		CHARGE_BAR_HEIGHT,
+	}
 	rl.DrawRectangleRec(charge_bar1, rl.GREEN)
 	rl.DrawRectangleRec(charge_bar2, rl.GREEN)
-	rl.DrawRectangleLinesEx(charge_bar1_bg, 3, rl.WHITE)
-	rl.DrawRectangleLinesEx(charge_bar2_bg, 3, rl.WHITE)
+	rl.DrawRectangleLinesEx(charge_bar1_bg, CHARGE_BAR_BORDER, rl.WHITE)
+	rl.DrawRectangleLinesEx(charge_bar2_bg, CHARGE_BAR_BORDER, rl.WHITE)
 
+}
+
+handle_bonuses :: proc() {
+	if (!bonus_active) {
+		attack_speed_drop := rand.float32()
+		if (attack_speed_drop < ATTACK_SPEED_BONUS_DROP_RATE) {
+			bonus_rec.width = BONUS_WIDTH
+			bonus_rec.height = BONUS_HEIGHT
+			bonus_rec.y = rand.float32() * (cast(f32)SCREEN_HEIGHT - BONUS_HEIGHT)
+
+			max_x_left := MIDDLE_BAR_X - BONUS_WIDTH
+			max_x_right := cast(f32)SCREEN_WIDTH - BONUS_WIDTH
+
+			if (rand.float32() < 0.5) {
+				bonus_rec.x = rand.float32() * max_x_left
+			} else {
+				bonus_rec.x =
+					MIDDLE_BAR_X +
+					MIDDLE_BAR_WIDTH +
+					rand.float32() * (max_x_right - (MIDDLE_BAR_X + MIDDLE_BAR_WIDTH))
+			}
+
+			bonus_active = true
+		}
+	} else {
+		rl.DrawRectangleRec(bonus_rec, rl.RED)
+	}
 }
