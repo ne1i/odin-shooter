@@ -6,6 +6,7 @@ import rl "vendor:raylib"
 
 Screens :: enum {
 	START_MENU,
+	START_MENU_ONLINE,
 	GAME,
 	GAME_OVER,
 }
@@ -101,12 +102,14 @@ main :: proc() {
 
 	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "2sg")
 	monitor := rl.GetCurrentMonitor()
-	rl.SetTargetFPS(120)
+	rl.SetTargetFPS(TARGET_FPS)
 	for (!rl.WindowShouldClose()) {
 		switch (current_screen) {
 		case Screens.START_MENU:
 			main_menu()
 			break
+		case Screens.START_MENU_ONLINE:
+			main_menu_online()
 		case Screens.GAME:
 			game(&player1, &player2)
 			break
@@ -123,7 +126,7 @@ main_menu :: proc() {
 
 	rl.BeginDrawing()
 
-	start_menu_text: cstring = "Press ENTER"
+	start_menu_text: cstring = "Press ENTER for local"
 	start_menu_text_font_size: i32 = 50
 	start_menu_text_width := rl.MeasureText(start_menu_text, start_menu_text_font_size)
 	rl.DrawText(
@@ -133,12 +136,44 @@ main_menu :: proc() {
 		start_menu_text_font_size,
 		rl.WHITE,
 	)
+
+	online_mode_text: cstring = "Press RSHIFT for online"
+	online_mode_text_font_size: i32 = 50
+	online_mode_text_width := rl.MeasureText(online_mode_text, online_mode_text_font_size)
+	rl.DrawText(
+		online_mode_text,
+		(SCREEN_WIDTH / 2) - online_mode_text_width / 2,
+		SCREEN_HEIGHT / 2,
+		online_mode_text_font_size,
+		rl.WHITE,
+	)
 	rl.ClearBackground(rl.BLACK)
 	rl.EndDrawing()
 	if (rl.IsKeyPressed(rl.KeyboardKey.ENTER)) {
 		current_screen = Screens.GAME
 	}
 
+	if (rl.IsKeyPressed(rl.KeyboardKey.RIGHT_SHIFT)) {
+		current_screen = Screens.START_MENU_ONLINE
+	}
+
+}
+
+main_menu_online :: proc() {
+	rl.BeginDrawing()
+	enter_ip_text: cstring = "Please enter\n player 2 IP address"
+	enter_ip_text_font_size: i32 = 50
+	enter_ip_text_width := rl.MeasureText(enter_ip_text, enter_ip_text_font_size)
+	rl.DrawText(
+		enter_ip_text,
+		(SCREEN_WIDTH / 2) - enter_ip_text_width / 2,
+		SCREEN_HEIGHT / 3,
+		enter_ip_text_font_size,
+		rl.WHITE,
+	)
+	rl.DrawRectangleLines(150, 400, 500, 100, rl.WHITE)
+	rl.ClearBackground(rl.BLACK)
+	rl.EndDrawing()
 }
 
 game :: proc(pplayer1: ^rl.Rectangle, pplayer2: ^rl.Rectangle) {
